@@ -1,157 +1,143 @@
 import streamlit as st
 import random
-import re
+import pandas as pd
 
-# Set page config
-st.set_page_config(
-    page_title="ISBN Master - Aplikasi Pengelola & Validasi ISBN",
-    page_icon="📚",
-    layout="wide"
-)
+# Konfigurasi Halaman Utama
+st.set_page_config(page_title="Sistem Manajemen & Registrasi ISBN", page_icon="📚", layout="wide")
 
-# Custom Styling
-st.markdown("""
-    <style>
-    .main-title {
-        font-size: 32px;
-        font-weight: bold;
-        color: #1E3A8A;
-        margin-bottom: 20px;
-    }
-    .card {
-        padding: 20px;
-        border-radius: 10px;
-        background-color: #F3F4F6;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-        margin-bottom: 20px;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-# Session state initialization for database mockup
-if 'books_db' not in st.session_state:
-    st.session_state.books_db = [
-        {"isbn": "978-602-03-1234-5", "judul": "Laskar Pelangi", "penulis": "Andrea Hirata", "penerbit": "Bentang Pustaka", "tahun": "2005"},
-        {"isbn": "978-623-24-4567-8", "judul": "Bumi", "penulis": "Tere Liye", "penerbit": "Gramedia Pustaka Utama", "tahun": "2014"},
-        {"isbn": "978-979-43-3987-1", "judul": "Filosofi Kopi", "penulis": "Dee Lestari", "penerbit": "Bentang Budaya", "tahun": "2006"}
+# Inisialisasi Basis Data Sederhana di Session State agar data tidak hilang saat refresh/pindah menu
+if "database_buku" not in st.session_state:
+    st.session_state.database_buku = [
+        {"isbn": "978-623-224-115-2", "judul": "Laskar Pelangi", "penulis": "Andrea Hirata", "penerbit": "Bentang Pustaka", "tahun": "2005", "kategori": "Fiksi / Novel"},
+        {"isbn": "978-623-901-550-4", "judul": "Bumi Manusia", "penulis": "Pramoedya Ananta Toer", "penerbit": "Lentera Dipantara", "tahun": "1980", "kategori": "Fiksi / Sejarah"},
     ]
 
-# Helper Functions
-def validate_isbn13(isbn_str):
-    # Clean string
-    cleaned = re.sub(r'[- ]', '', isbn_str)
-    if len(cleaned) != 13 or not cleaned.isdigit():
-        return False
-    
-    # Calculate check digit
+# ----------------- FUNGSI UTAMA (LOGIKA MATEMATIS ISBN) -----------------
+def hitung_check_digit_isbn13(sembilan_digit_awal):
+    """Menghitung check digit (angka ke-13) berdasarkan formula standar EAN-13"""
     total = 0
-    for i, digit in enumerate(cleaned[:-1]):
-        weight = 1 if i % 2 == 0 else 3
-        total += int(digit) * weight
-    
-    check_digit = (10 - (total % 10)) % 10
-    return check_digit == int(cleaned[-1])
+    for i, digit in enumerate(sembilan_digit_awal):
+        bobot = 1 if i % 2 == 0 else 3
+        total += int(digit) * bobot
+    sisa = total % 10
+    check_digit = (10 - sisa) % 10
+    return str(check_digit)
 
-def generate_random_isbn():
-    prefix = "978"
-    group = "623" # Indonesia new group
-    publisher = f"{random.randint(10, 9999):02d}"
-    title = f"{random.randint(10, 99999):02d}"
+def generate_valid_isbn13():
+    """Membuat simulasi deretan ISBN-13 Indonesia yang valid secara matematis"""
+    prefix = "978"        # Buku fisik komersial
+    group_id = "623"      # Kode geografis Indonesia terbaru
+    registrant = str(random.randint(100, 999))  # Kode unik penerbit (simulasi)
+    publication = str(random.randint(1000, 9999)) # Kode urut judul buku
     
-    # Combine first 12 digits
-    partial = f"{prefix}{group}{publisher}{title}"
-    partial = partial[:12] # Ensure exactly 12
+    gabungan_12_digit = prefix + group_id + registrant + publication
+    check_digit = hitung_check_digit_isbn13(gabungan_12_digit)
+    
+    isbn_rapi = f"{prefix}-{group_id}-{registrant}-{publication}-{check_digit}"
+    return isbn_rapi
+
+def validasi_isbn13(isbn_str):
+    """Memvalidasi keaslian format dan matematika ISBN-13"""
+    bersih = isbn_str.replace("-", "").replace(" ", "")
+    if len(bersih) != 13 or not bersih.isdigit():
+        return False, "ISBN harus terdiri dari 13 digit angka."
     
     total = 0
-    for i, digit in enumerate(partial):
-        weight = 1 if i % 2 == 0 else 3
-        total += int(digit) * weight
-    check_digit = (10 - (total % 10)) % 10
+    for i in range(12):
+        bobot = 1 if i % 2 == 0 else 3
+        total += int(bersih[i]) * bobot
     
-    full_isbn = f"{partial}{check_digit}"
-    # Format layout: 978-623-XXXX-XXX-X
-    return f"{full_isbn[:3]}-{full_isbn[3:6]}-{full_isbn[6:10]}-{full_isbn[10:12]}-{full_isbn[12]}"
-
-# Header UI
-st.markdown("<div class='main-title'>📚 ISBN Master Dashboard</div>", unsafe_allow_html=True)
-st.write("Aplikasi internal untuk manajemen data buku, validasi standardisasi ISBN-13, dan generator otomatis.")
-
-# Sidebar Navigation
-menu = st.sidebar.radio("Navigasi Menu", ["Daftar Buku (Database)", "Validasi & Cek ISBN", "Generator ISBN Baru"])
-
-if menu == "Daftar Buku (Database)":
-    st.subheader("🗄️ Database Registrasi Buku")
+    sisa = total % 10
+    check_digit_seharusnya = (10 - sisa) % 10
     
-    # Form Tambah Buku
-    with st.expander("➕ Daftarkan Buku Baru (Ber-ISBN)"):
-        with st.form("add_book_form"):
-            new_isbn = st.text_input("Nomor ISBN-13", placeholder="Contoh: 978-602-xxx-xxx-x")
-            new_title = st.text_input("Judul Buku")
-            new_author = st.text_input("Nama Penulis / Pengarang")
-            new_publisher = st.text_input("Nama Penerbit")
-            new_year = st.text_input("Tahun Terbit")
-            
-            submit = st.form_submit_button("Simpan ke Database")
-            if submit:
-                if not new_isbn or not new_title:
-                    st.error("Gagal: ISBN dan Judul Buku wajib diisi!")
-                elif not validate_isbn13(new_isbn):
-                    st.warning("⚠️ Peringatan: Format atau Check Digit ISBN tidak valid. Pastikan kembali input Anda.")
-                else:
-                    st.session_state.books_db.append({
-                        "isbn": new_isbn, "judul": new_title, "penulis": new_author, "penerbit": new_publisher, "tahun": new_year
-                    })
-                    st.success(f"Sukses: Buku '{new_title}' berhasil didaftarkan!")
-
-    # Search bar
-    search_query = st.text_input("🔍 Cari berdasarkan Judul, Penulis, atau ISBN:", "")
-    
-    # Filtered List
-    filtered_books = [
-        b for b in st.session_state.books_db 
-        if search_query.lower() in b['judul'].lower() 
-        or search_query.lower() in b['penulis'].lower() 
-        or search_query.lower() in b['isbn'].lower()
-    ]
-    
-    if filtered_books:
-        st.table(filtered_books)
+    if int(bersih[12]) == check_digit_seharusnya:
+        return True, "ISBN Valid secara matematis standar internasional."
     else:
-        st.info("Tidak ada data buku yang cocok dengan pencarian.")
+        return False, f"ISBN Tidak Valid. Angka pemeriksa terakhir seharusnya adalah '{check_digit_seharusnya}'."
 
-elif menu == "Validasi & Cek ISBN":
-    st.subheader("🔍 Validasi Keaslian Nomor ISBN")
-    st.write("Masukkan 13 digit nomor ISBN untuk memverifikasi struktur kode matematisnya (*Check Digit*).")
-    
-    input_isbn = st.text_input("Masukkan Kode ISBN-13:", value="978-602-03-1234-5")
-    
-    if st.button("Jalankan Pemindaian Validitas"):
-        is_valid = validate_isbn13(input_isbn)
-        if is_valid:
-            st.success("✅ ISBN VALID! Struktur penulisan dan Check Digit memenuhi standar internasional EAN/ISBN-13.")
-            
-            # Breakdown info basic parsing
-            cleaned = re.sub(r'[- ]', '', input_isbn)
-            st.markdown(f"""
-            **Analisis Struktur Kode:**
-            *   **Prefix Komersial:** {cleaned[:3]} (Identitas Buku Dunia)
-            *   **Kode Negara/Grup:** {cleaned[3:6]} (Wilayah Registrasi)
-            *   **Angka Pemeriksa (Check Digit):** {cleaned[-1]}
-            """)
-        else:
-            st.error("❌ ISBN TIDAK VALID! Angka pemeriksa terakhir tidak cocok dengan kalkulasi algoritma tertimbang ISBN-13. Periksa salah ketik.")
+# ----------------- ANTARMUKA APLIKASI (STREAMLIT UI) -----------------
+st.title("📚 Sistem Informasi & Registrasi Pengajuan ISBN")
+st.write("Aplikasi internal pengelolaan data publikasi, validasi, dan generator kode standar Perpusnas.")
 
-elif menu == "Generator ISBN Baru":
-    st.subheader("🎲 Alokasi Mock ISBN Generator")
-    st.write("Fitur simulasi untuk memproduksi kode ISBN-13 acak yang valid dan siap pakai untuk draf buku mockup penerbitan.")
+# Navigasi Menu Samping (Sidebar)
+menu = st.sidebar.radio("PILIH MENU APLIKASI:", ["Buat & Registrasi ISBN Baru", "Data & Koleksi Buku", "Validasi Kode ISBN"])
+
+# ----------------- MENU 1: BUAT & REGISTRASI ISBN BARU -----------------
+if menu == "Buat & Registrasi ISBN Baru":
+    st.header("📝 Formulir Pengajuan & Pembuatan ISBN")
+    st.write("Isi metadata buku di bawah ini untuk menggenerasikan kode ISBN resmi ke dalam sistem.")
     
     col1, col2 = st.columns(2)
     with col1:
-        jumlah = st.number_input("Jumlah Kode yang Dihasilkan:", min_value=1, max_value=20, value=5)
-        if st.button("Generate Kode"):
-            st.write("**Hasil Generate Terkini (Siap Digunakan):**")
-            for i in range(jumlah):
-                generated = generate_random_isbn()
-                st.code(generated, language="text")
+        judul = st.text_input("Judul Lengkap Buku", placeholder="Contoh: Pemrograman Python untuk Pemula")
+        penulis = st.text_input("Nama Penulis / Pengarang", placeholder="Contoh: Budi Santoso, M.Kom.")
+        penerbit = st.text_input("Nama Penerbit", value="Penerbit Interaktif Indonesia")
+    
     with col2:
-        st.info("💡 **Informasi Eksternal:**\nDi Indonesia, alokasi nomor resmi ber-barcode wajib melalui pintu gerbang satu pintu di situs [Perpustakaan Nasional RI](https://isbn.perpusnas.go.id/). Generator ini hanya memproduksi kode acak yang valid secara matematika untuk keperluan internal/testing sistem.")
+        tahun = st.selectbox("Tahun Terbit", [str(x) for x in range(2027, 2020, -1)])
+        kategori = st.selectbox("Kategori / Subjek Buku", ["Fiksi / Novel", "Sains & Teknologi", "Sosial & Humaniora", "Buku Teks Akademik", "Anak-anak", "Biografi"])
+        format_buku = st.radio("Format Publikasi", ["Cetak (Paperback)", "Digital (E-Book / PDF)"])
+
+    st.subheader("📁 Unggah Berkas Persyaratan Perpusnas")
+    file_halaman_judul = st.file_uploader("Unggah Halaman Judul & Daftar Isi (PDF/Format Gambar)", type=["pdf", "png", "jpg"])
+    
+    # Tombol Aksi Pembuatan
+    if st.button("Proses & Buat Kode ISBN", type="primary"):
+        if not judul or not penulis:
+            st.error("❌ Gagal! Judul buku dan nama penulis wajib diisi.")
+        elif not file_halaman_judul:
+            st.warning("⚠️ Dokumen pelengkap belum diunggah, namun sistem lokal akan tetap menggenerasikan nomor simulasi.")
+            
+            # Generate ISBN Baru secara otomatis
+            isbn_baru = generate_valid_isbn13()
+            
+            # Simpan data ke basis data lokal (Session State)
+            data_baru = {"isbn": isbn_baru, "judul": judul, "penulis": penulis, "penerbit": penerbit, "tahun": tahun, "kategori": kategori}
+            st.session_state.database_buku.append(data_baru)
+            
+            st.success(f"🎉 **Sukses! Kode ISBN Baru Berhasil Dibuat: {isbn_baru}**")
+            st.info("Buku telah berhasil disimpan ke database internal. Anda bisa mengeceknya di menu 'Data & Koleksi Buku'.")
+        else:
+            isbn_baru = generate_valid_isbn13()
+            data_baru = {"isbn": isbn_baru, "judul": judul, "penulis": penulis, "penerbit": penerbit, "tahun": tahun, "kategori": kategori}
+            st.session_state.database_buku.append(data_baru)
+            
+            st.success(f"🎉 **Sukses! Registrasi Berhasil. Kode Resmi Anda: {isbn_baru}**")
+            st.balloons()
+
+# ----------------- MENU 2: DATA & KOLEKSI BUKU -----------------
+elif menu == "Data & Koleksi Buku":
+    st.header("📊 Database Buku ber-ISBN")
+    
+    # Fitur Pencarian Dinamis
+    pencarian = st.text_input("🔍 Cari data buku (masukkan judul, penulis, atau nomor ISBN):")
+    
+    # Konversi data ke Dataframe Pandas agar visualisasi tabel rapi
+    df = pd.DataFrame(st.session_state.database_buku)
+    
+    if pencarian:
+        df_filtered = df[df['judul'].str.contains(pencarian, case=False) | 
+                         df['penulis'].str.contains(pencarian, case=False) | 
+                         df['isbn'].str.contains(pencarian, case=False)]
+        st.write(f"Menampilkan hasil pencarian untuk: '{pencarian}'")
+        st.dataframe(df_filtered, use_container_width=True)
+    else:
+        st.write("Daftar seluruh buku terdaftar saat ini:")
+        st.dataframe(df, use_container_width=True)
+
+# ----------------- MENU 3: VALIDASI KODE ISBN -----------------
+elif menu == "Validasi Kode ISBN":
+    st.header("🔍 Alat Validasi Validitas ISBN-13")
+    st.write("Gunakan menu ini untuk memverifikasi apakah kombinasi angka pada kode ISBN buku Anda sudah benar secara formula internasional atau mengandung kesalahan ketik (*typo*).")
+    
+    input_isbn = st.text_input("Masukkan Kode ISBN-13 yang akan dicek:", placeholder="Contoh: 978-623-224-115-2")
+    
+    if st.button("Cek Validitas"):
+        if input_isbn:
+            is_valid, pesan = validasi_isbn13(input_isbn)
+            if is_valid:
+                st.success(f"✅ {pesan}")
+            else:
+                st.error(f"❌ {pesan}")
+        else:
+            st.warning("Silakan masukkan kode ISBN terlebih dahulu.")
