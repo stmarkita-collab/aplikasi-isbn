@@ -4,7 +4,7 @@ import pandas as pd
 import io
 
 # Konfigurasi Halaman Utama
-st.set_page_config(page_title="Sistem Manajemen & Registrasi ISBN", page_icon="📚", layout="wide")
+st.set_page_config(page_title="Sistem Manajemen & Registrasi ISBN", page_icon="ðŸ“š", layout="wide")
 
 # Inisialisasi Basis Data Sederhana di Session State agar data tidak hilang saat refresh/pindah menu
 if "database_buku" not in st.session_state:
@@ -84,7 +84,7 @@ def buat_gambar_barcode(isbn_str):
     return fp.getvalue()
 
 # ----------------- ANTARMUKA APLIKASI (STREAMLIT UI) -----------------
-st.title("📚 Sistem Informasi & Registrasi Pengajuan ISBN")
+st.title("ðŸ“š Sistem Informasi & Registrasi Pengajuan ISBN")
 st.write("Aplikasi internal pengelolaan data publikasi, validasi, dan generator kode standar Perpusnas.")
 
 # Navigasi Menu Samping (Sidebar)
@@ -92,7 +92,7 @@ menu = st.sidebar.radio("PILIH MENU APLIKASI:", ["Buat & Registrasi ISBN Baru", 
 
 # ----------------- MENU 1: BUAT & REGISTRASI ISBN BARU -----------------
 if menu == "Buat & Registrasi ISBN Baru":
-    st.header("📝 Formulir Pengajuan & Pembuatan ISBN")
+    st.header("ðŸ“ Formulir Pengajuan & Pembuatan ISBN")
     st.write("Isi metadata buku di bawah ini untuk menggenerasikan kode ISBN resmi ke dalam sistem.")
     
     col1, col2 = st.columns(2)
@@ -106,33 +106,33 @@ if menu == "Buat & Registrasi ISBN Baru":
         kategori = st.selectbox("Kategori / Subjek Buku", ["Fiksi / Novel", "Sains & Teknologi", "Sosial & Humaniora", "Buku Teks Akademik", "Anak-anak", "Biografi"])
         format_buku = st.radio("Format Publikasi", ["Cetak (Paperback)", "Digital (E-Book / PDF)"])
 
-    st.subheader("📁 Unggah Berkas Persyaratan Perpusnas")
+    st.subheader("ðŸ“ Unggah Berkas Persyaratan Perpusnas")
     file_halaman_judul = st.file_uploader("Unggah Halaman Judul & Daftar Isi (PDF/Format Gambar)", type=["pdf", "png", "jpg"])
     
     if st.button("Proses & Buat Kode ISBN", type="primary"):
         if not judul or not penulis:
-            st.error("❌ Gagal! Judul buku dan nama penulis wajib diisi.")
+            st.error("âŒ Gagal! Judul buku dan nama penulis wajib diisi.")
         else:
             isbn_baru = generate_valid_isbn13()
             data_baru = {"isbn": isbn_baru, "judul": judul, "penulis": penulis, "penerbit": penerbit, "tahun": tahun, "kategori": kategori}
             st.session_state.database_buku.append(data_baru)
             
-            st.success(f"🎉 **Sukses! Registrasi Berhasil. Kode Resmi Anda: {isbn_baru}**")
+            st.success(f"ðŸŽ‰ **Sukses! Registrasi Berhasil. Kode Resmi Anda: {isbn_baru}**")
             st.balloons()
             
             # --- TAMPILAN BARCODE SETELAH SUKSES REGISTRASI ---
             st.write("---")
-            st.subheader("🖨️ Hasil Cetak Barcode EAN-13")
+            st.subheader("ðŸ–¨ï¸ Hasil Cetak Barcode EAN-13")
             
             try:
                 gambar_barcode = buat_gambar_barcode(isbn_baru)
                 
                 # Buat susunan layout tengah agar gambar tidak terlalu melebar
-                b_col1, b_col2, b_col3 = st.columns([1, 2, 1])
+                b_col1, b_col2, b_col3 = st.columns()
                 with b_col2:
                     st.image(gambar_barcode, caption=f"Kode Batang Resmi ISBN: {isbn_baru}", use_container_width=True)
                     st.download_button(
-                        label="💾 Unduh Gambar Barcode (.png)",
+                        label="ðŸ’¾ Unduh Gambar Barcode (.png)",
                         data=gambar_barcode,
                         file_name=f"barcode_{isbn_baru.replace('-', '')}.png",
                         mime="image/png"
@@ -142,9 +142,9 @@ if menu == "Buat & Registrasi ISBN Baru":
 
 # ----------------- MENU 2: DATA & KOLEKSI BUKU -----------------
 elif menu == "Data & Koleksi Buku":
-    st.header("📊 Database Buku ber-ISBN")
+    st.header("ðŸ“Š Database Buku ber-ISBN")
     
-    pencarian = st.text_input("🔍 Cari data buku (masukkan judul, penulis, atau nomor ISBN):")
+    pencarian = st.text_input("ðŸ” Cari data buku (masukkan judul, penulis, atau nomor ISBN):")
     df = pd.DataFrame(st.session_state.database_buku)
     
     if pencarian:
@@ -156,15 +156,15 @@ elif menu == "Data & Koleksi Buku":
         df_tampilan = df
         st.write("Daftar seluruh buku terdaftar saat ini:")
         
-    tab_tabel, tab_grafik, tab_cetak_barcode = st.tabs(["📋 Tabel Data Buku", "📊 Grafik Statistik", "🖨️ Cetak Ulang Barcode"])
+    tab_tabel, tab_grafik, tab_cetak_barcode = st.tabs(["ðŸ“‹ Tabel Data Buku", "ðŸ“Š Grafik Statistik", "ðŸ–¨ï¸ Cetak Ulang Barcode"])
     
     with tab_tabel:
         st.dataframe(df_tampilan, use_container_width=True)
         st.write("---")
-        st.subheader("📥 Ekspor Laporan")
+        st.subheader("ðŸ“¥ Ekspor Laporan")
         data_excel = konversi_ke_excel(df_tampilan)
         st.download_button(
-            label="🟢 Unduh Data Buku (.xlsx)",
+            label="ðŸŸ¢ Unduh Data Buku (.xlsx)",
             data=data_excel,
             file_name="laporan_database_isbn.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -172,7 +172,7 @@ elif menu == "Data & Koleksi Buku":
         
     with tab_grafik:
         if not df_tampilan.empty:
-            st.subheader("📈 Analisis Distribusi Buku")
+            st.subheader("ðŸ“ˆ Analisis Distribusi Buku")
             g_col1, g_col2 = st.columns(2)
             
             with g_col1:
@@ -191,7 +191,7 @@ elif menu == "Data & Koleksi Buku":
             st.info("Tidak ada data untuk divisualisasikan.")
 
     with tab_cetak_barcode:
-        st.subheader("🔍 Pilih Buku untuk Cetak Barcode")
+        st.subheader("ðŸ” Pilih Buku untuk Cetak Barcode")
         if not df_tampilan.empty:
             pilihan_buku = st.selectbox(
                 "Pilih judul buku yang ingin dicetak barcode-nya:",
@@ -208,28 +208,29 @@ elif menu == "Data & Koleksi Buku":
             
             bc1, bc2, bc3 = st.columns([1, 1.5, 1])
             with bc2:
-st.image(barcode_bytes, caption=f"Barcode EAN-13: {isbn_terpilih}", use_container_width=True)
-st.download_button(
-label=f"💾 Download Barcode - {judul_terpilih[:15]}...",
-data=barcode_bytes,
-file_name=f"barcode_{isbn_terpilih.replace('-', '')}.png",
-mime="image/png"
-)
-else:
-st.info("Tidak ada buku yang dapat dipilih.")
+                st.image(barcode_bytes, caption=f"Barcode EAN-13: {isbn_terpilih}", use_container_width=True)
+                st.download_button(
+                    label=f"ðŸ’¾ Download Barcode - {judul_terpilih[:15]}...",
+                    data=barcode_bytes,
+                    file_name=f"barcode_{isbn_terpilih.replace('-', '')}.png",
+                    mime="image/png"
+                )
+        else:
+            st.info("Tidak ada buku yang dapat dipilih.")
 
-#---------------- MENU 3: VALIDASI KODE ISBN -----------------
-
+# ----------------- MENU 3: VALIDASI KODE ISBN -----------------
 elif menu == "Validasi Kode ISBN":
-st.header("🔍 Alat Validasi Validitas ISBN-13")
-st.write("Gunakan menu ini untuk memverifikasi apakah kombinasi angka pada kode ISBN buku Anda sudah benar secara formula internasional.")
-input_isbn = st.text_input("Masukkan Kode ISBN-13 yang akan dicek:", placeholder="Contoh: 978-623-224-115-2")
-if st.button("Cek Validitas"):
-if input_isbn:
-is_valid, pesan = validasi_isbn13(input_isbn)
-if is_valid:
-st.success(f"✅ {pesan}")
-else:
-st.error(f"❌ {pesan}")
-else:
-st.warning("Silakan masukkan kode ISBN terlebih dahulu.")
+    st.header("ðŸ” Alat Validasi Validitas ISBN-13")
+    st.write("Gunakan menu ini untuk memverifikasi apakah kombinasi angka pada kode ISBN buku Anda sudah benar secara formula internasional.")
+    
+    input_isbn = st.text_input("Masukkan Kode ISBN-13 yang akan dicek:", placeholder="Contoh: 978-623-224-115-2")
+    
+    if st.button("Cek Validitas"):
+        if input_isbn:
+            is_valid, pesan = validasi_isbn13(input_isbn)
+            if is_valid:
+                st.success(f"âœ… {pesan}")
+            else:
+                st.error(f"âŒ {pesan}")
+        else:
+            st.warning("Silakan masukkan kode ISBN terlebih dahulu.")
